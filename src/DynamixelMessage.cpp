@@ -11,7 +11,7 @@ DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, bool write, bool 
     DynamixelMessage::_reg=reg;
     DynamixelMessage::_value=value;
 }
-Vector<uint8_t> DynamixelMessage::assemblePacket()
+std::Vector<uint8_t> DynamixelMessage::assemblePacket()
 {
     uint8_t pkt[255];
     uint8_t checksumResult;

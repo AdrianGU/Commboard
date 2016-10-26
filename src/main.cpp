@@ -1,6 +1,5 @@
 #include <UartEvent.h>
 #include <DynamixelMessage.h>
-#include <Vector.h>
 
 DynamixelMessage Test(0X02,0X04,false,false,0X03,0X00);
 Uart1Event Event1;
@@ -21,6 +20,7 @@ volatile uint8_t toPortCQueue[255];
 void tx1Event();
 void rx1Event();
 
+
 void setup()
 {
   Event1.clear();
@@ -30,7 +30,7 @@ void setup()
   Event1.begin(1000000);
   Event1.clear();
   pinMode(13, OUTPUT);
-  Vector<int> vi;
+
   //initPort(1);
 }
 
@@ -38,14 +38,7 @@ void loop()
 {
   digitalWrite(13, HIGH);
   //Test.assemblePacket();
-  Serial.println("Let's have a look at vi: ");
-  for(int i = 0; i < vi.size(); ++i) {
-    Serial.print("\tthe element at index ");
-    Serial.print(i);
-    Serial.print(" is: ");
-    Serial.println(vi[i]);
-  }
-  delay(5000);
+  delay(500);
   digitalWrite(13, LOW);
 }
 

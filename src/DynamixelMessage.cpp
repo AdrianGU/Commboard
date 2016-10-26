@@ -1,5 +1,5 @@
 #include "DynamixelMessage.h"
-#include "Arduino.h"
+
 
 
 DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, bool write, bool syncwrite, uint8_t reg, uint8_t value)
@@ -11,7 +11,7 @@ DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, bool write, bool 
     DynamixelMessage::_reg=reg;
     DynamixelMessage::_value=value;
 }
-void DynamixelMessage::assemblePacket()
+Vector<uint8_t> DynamixelMessage::assemblePacket()
 {
     uint8_t pkt[255];
     uint8_t checksumResult;

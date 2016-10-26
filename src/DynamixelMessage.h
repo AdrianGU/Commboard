@@ -2,7 +2,7 @@
 #define DynamixelMessage_H
 
 #include <cstdint>
-
+#include "Arduino.h"
 
 
 #define _READ_SERVO_DATA 0X02
@@ -81,7 +81,7 @@ class DynamixelMessage
 
     public:
         DynamixelMessage(uint8_t id,uint8_t length, bool write, bool syncwrite, uint8_t reg, uint8_t value);
-        void assemblePacket();
+        Vector<uint8_t> assemblePacket();
 
 
         uint8_t get_id() const;

@@ -1,0 +1,30 @@
+{
+    "name": "StandardCplusplus", 
+    "repository": {
+        "url": "https://github.com/maniacbug/StandardCplusplus.git", 
+        "type": "git"
+    }, 
+    "platforms": [
+        "atmelavr"
+    ], 
+    "frameworks": [
+        "arduino"
+    ], 
+    "version": "af182419b2", 
+    "authors": [
+        {
+            "maintainer": false, 
+            "name": "maniacbug", 
+            "url": "https://github.com/maniacbug", 
+            "email": null
+        }
+    ], 
+    "keywords": [
+        "std", 
+        "vector", 
+        "stream", 
+        "algorithm"
+    ], 
+    "id": 572, 
+    "description": "Standard C++ for Arduino (port of uClibc++)"
+}

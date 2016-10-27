@@ -11,9 +11,10 @@ DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, bool write, bool 
     DynamixelMessage::_reg=reg;
     DynamixelMessage::_value=value;
 }
-std::Vector<uint8_t> DynamixelMessage::assemblePacket()
+Vector<uint8_t> DynamixelMessage::assemblePacket()
 {
     uint8_t pkt[255];
+    Vector<uint8_t> assembledPacket;
     uint8_t checksumResult;
 
     for (int t = 0; t < 255; t++)
@@ -22,6 +23,7 @@ std::Vector<uint8_t> DynamixelMessage::assemblePacket()
     }
 
     pkt[0] = 0XFF;
+    assembledPacket.push_back(pkt[0]);
     pkt[1] = 0XFF;
     pkt[2] = DynamixelMessage::_id;
     pkt[3] = DynamixelMessage::_length+4;
@@ -40,19 +42,28 @@ std::Vector<uint8_t> DynamixelMessage::assemblePacket()
     }
     pkt[5] =DynamixelMessage::_reg;
     pkt[6] =DynamixelMessage::_value;
-    //checksum = ~(pkt[2] + pkt[3] + pkt[4] + pkt[5] + pkt[6] + pkt[7]);
+    //checksum = ~(sum (all bytes that belong to message));
     for(int p=2;p<pkt[3];p++)
     {
         checksumResult=checksumResult+pkt[p];
     }
-    checksumResult=~checksumResult;
-    pkt[pkt[3-1]]=checksumResult;
+    checksumResult=~(checksumResult);
+    pkt[pkt[3]-1]=checksumResult;
 
+    //Creation of Vector of desired Packetsize
 
+    for (int j=0;j<pkt[3];j++)
+    {
+      assembledPacket.push_back(pkt[j]);
+    }
+
+/*
     for(int i=0;i<pkt[3];i++)
     {
         Serial.println(pkt[i]);
     }
+*/
+return assembledPacket;
 
 }
 

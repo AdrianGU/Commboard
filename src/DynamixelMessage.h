@@ -2,7 +2,7 @@
 #define DynamixelMessage_H
 
 #include <cstdint>
-#include "Arduino.h"
+#include "Vector.h"
 
 
 #define _READ_SERVO_DATA 0X02

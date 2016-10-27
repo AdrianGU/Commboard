@@ -19,6 +19,7 @@ volatile uint8_t toPortBQueue[255];
 volatile uint8_t toPortCQueue[255];
 void tx1Event();
 void rx1Event();
+void sendPkt(uint8_t id,uint8_t length,uint8_t messageType, uint8_t reg, uint8_t bytesToRead,uint8_t checksum);
 
 
 void setup()
@@ -37,12 +38,14 @@ void setup()
 void loop()
 {
   digitalWrite(13, HIGH);
-  //Test.assemblePacket();
   delay(500);
+  //sendPkt(Test.assemblePacket());
   digitalWrite(13, LOW);
+  delay(500);
+
 }
 
-void sendPkt(uint8_t id, uint8_t reg, uint8_t bytesToRead);
+
 
 void tx1Event(void)
 {
@@ -56,7 +59,7 @@ void scanPort(int portNr)
     //Event1.rxEventHandler=rx1scanEvent;
     for (int i = 0; i < 255; i++)
     {
-      sendPkt(i, 0X03, 1);
+    //  sendPkt(Test.assemblePacket());
       delayMicroseconds(300);
     }
   }
@@ -117,7 +120,7 @@ void rx1Event()
       }
 
     }
-    sendPkt(4, 0X24, 4);
+    //sendPkt(4, 0X24, 4);
   }
 
   Serial.println("BUFFERTRIGGER");
@@ -169,10 +172,9 @@ void rx1Resync()
 
 
 
-void sendPkt(uint8_t id, uint8_t reg, uint8_t bytesToRead)
+void sendPkt(Vector<uint8_t> packetToSend)
 {
   uint8_t pkt[256];
-  uint8_t checksum;
 
   for (int t = 0; t < 255; t++)
   {
@@ -181,13 +183,12 @@ void sendPkt(uint8_t id, uint8_t reg, uint8_t bytesToRead)
 
   pkt[0] = 0XFF;
   pkt[1] = 0XFF;
-  pkt[2] = id;
+  pkt[2] = 0;
   pkt[3] = 0X04;
   pkt[4] = _READ_SERVO_DATA;
-  pkt[5] = reg;
-  pkt[6] = bytesToRead;
-  checksum = ~(pkt[2] + pkt[3] + pkt[4] + pkt[5] + pkt[6]) & 255;
-  pkt[7] = checksum;
+  pkt[5] = 0;
+  pkt[6] = 0;
+  pkt[7]=0;
   //digitalWrite(3,HIGH);
 
   Event1.write(pkt, 8);

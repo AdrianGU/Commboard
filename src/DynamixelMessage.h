@@ -4,12 +4,11 @@
 #include <cstdint>
 #include "Vector.h"
 
-
 #define _READ_SERVO_DATA 0X02
 #define _WRITE_SERVO_DATA 0X03
 #define _WRITE_SYNC_SERVO_DATA 0X04
 
-/* EEPROM */
+/* EEPROM Registers*/
 #define  SERVO_REGISTER_MODEL_NUMBER             0x00
 //SERVO_REGISTER_MODEL_NUMBER_L         0x00,
 //SERVO_REGISTER_MODEL_NUMBER_H         0x01,
@@ -80,10 +79,12 @@ class DynamixelMessage
 {
 
     public:
+        //Creates a Dynamixel Object that automatically saves the values given to private variables in the class
+
         DynamixelMessage(uint8_t id,uint8_t length, bool write, bool syncwrite, uint8_t reg, uint8_t value);
-        Vector<uint8_t> assemblePacket();
+        void assemblePacket(Vector<uint8_t>* assembledPacket2);
 
-
+        //Declaration of getter-/setter-Methods for all private variables
         uint8_t get_id() const;
         void set_id(uint8_t _id);
         uint8_t get_length() const;

@@ -4,17 +4,25 @@
 
 DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, bool write, bool syncwrite, uint8_t reg, uint8_t value)
 {
+  //When calling the constructor, all given variables are written to private variables in the class.
     DynamixelMessage::_id=id;
     DynamixelMessage::_length=length;
     DynamixelMessage::_write=write;
     DynamixelMessage::_syncwrite=syncwrite;
     DynamixelMessage::_reg=reg;
     DynamixelMessage::_value=value;
+
 }
-Vector<uint8_t> DynamixelMessage::assemblePacket()
+void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
+//This function will assemble a packet correctly so that it can be sent to, and be unterstood by a Dynamixel Servo-Drive.
+//The function will use the private variables that were given when calling the constructor
+//of the class to assemble the packet.
+//The constructor of the Vector library is buggy currently. Do not remove the argument (Vector<uint8_t>-Type pointer) from the function
+//unless you know what you are doing.
+//IMPORTANT NOTE: assemblePacket() is currently implemented for the regular Dynamixel Series only and will not work with the Dynamixel Pro Series.
+
 {
     uint8_t pkt[255];
-    Vector<uint8_t> assembledPacket;
     uint8_t checksumResult;
 
     for (int t = 0; t < 255; t++)
@@ -23,10 +31,12 @@ Vector<uint8_t> DynamixelMessage::assemblePacket()
     }
 
     pkt[0] = 0XFF;
-    assembledPacket.push_back(pkt[0]);
     pkt[1] = 0XFF;
     pkt[2] = DynamixelMessage::_id;
     pkt[3] = DynamixelMessage::_length+4;
+
+    //Determining what type of message(READ,WRITE,SYNCWRITE) to send to the Dynamixel.
+    //
     if(is_write())
     {
         pkt[4]=_WRITE_SERVO_DATA;
@@ -42,7 +52,9 @@ Vector<uint8_t> DynamixelMessage::assemblePacket()
     }
     pkt[5] =DynamixelMessage::_reg;
     pkt[6] =DynamixelMessage::_value;
-    //checksum = ~(sum (all bytes that belong to message));
+
+    //checksum calculation = The checksum is calculated by bit-wise inverting the sum of all parameters from the message except for the
+    //first two bytes ;
     for(int p=2;p<pkt[3];p++)
     {
         checksumResult=checksumResult+pkt[p];
@@ -50,23 +62,16 @@ Vector<uint8_t> DynamixelMessage::assemblePacket()
     checksumResult=~(checksumResult);
     pkt[pkt[3]-1]=checksumResult;
 
-    //Creation of Vector of desired Packetsize
-
+    //Pushing the message into the vector pointer that got passed when calling
+    //the function.
+    //This will dynamically allocate the space in the Vector in main.cpp depending on how big pkt[3] is e.g. how big the packet is.
     for (int j=0;j<pkt[3];j++)
     {
-      assembledPacket.push_back(pkt[j]);
+      assembledPacket->push_back(pkt[j]);
     }
-
-/*
-    for(int i=0;i<pkt[3];i++)
-    {
-        Serial.println(pkt[i]);
-    }
-*/
-return assembledPacket;
-
 }
 
+//Definition of Getter-/Setter-Methods for the private variables
 uint8_t DynamixelMessage::get_id() const {
     return _id;
 }

@@ -1,9 +1,10 @@
 #include <UartEvent.h>
 #include <DynamixelMessage.h>
 
-DynamixelMessage Test(0X02,0X04,false,false,0X03,0X00);
-Uart1Event Event1;
-
+DynamixelMessage Test(0X02,0X04,false,false,0X03,0X01);
+Uart1Event Event1;//UART A of the Teensy
+Uart2Event Event2;//UART B of the Teensy
+Uart3Event Event3;//UART C of the Teensy
 
 
 volatile bool print_flag = false;
@@ -19,7 +20,8 @@ volatile uint8_t toPortBQueue[255];
 volatile uint8_t toPortCQueue[255];
 void tx1Event();
 void rx1Event();
-void sendPkt(uint8_t id,uint8_t length,uint8_t messageType, uint8_t reg, uint8_t bytesToRead,uint8_t checksum);
+Vector<uint8_t> MessageVector;
+void sendPkt(Vector<uint8_t>* packetToSend);
 
 
 void setup()
@@ -32,20 +34,17 @@ void setup()
   Event1.clear();
   pinMode(13, OUTPUT);
 
-  //initPort(1);
 }
 
 void loop()
 {
   digitalWrite(13, HIGH);
   delay(500);
-  //sendPkt(Test.assemblePacket());
+  Test.assemblePacket(&MessageVector);
+  sendPkt(&MessageVector);
   digitalWrite(13, LOW);
   delay(500);
-
 }
-
-
 
 void tx1Event(void)
 {
@@ -65,17 +64,9 @@ void scanPort(int portNr)
   }
 }
 
-void rx1scanEvent()
-{
-    int i =0;
-
-         rcvdPkt[i]=Event1.read();
-}
-
 
 void rx1Event()
 {
-
   if (Sync == true)
   {
     Serial.println("IN SYNC");
@@ -92,19 +83,16 @@ void rx1Event()
       rcvdPkt[posInArray] = Event1.read();
       Serial.println(rcvdPkt[posInArray]);
       posInArray++;
-      //numOfBytesToRead--;
     }
 
 
     if (posInArray > 4 && posInArray >= rcvdPkt[3] + 4) {
-      //received complete packet
-      //Serial.println("If");
+      //received a complete packet from Dynamixel
       Event1.rxBufferSizeTrigger = 4;
       posInArray = 0;
 
 
     } else {
-      //Serial.println("Else");
       if (posInArray >= 4)
       {
         numOfBytesToRead = rcvdPkt[3] + 4;
@@ -118,18 +106,13 @@ void rx1Event()
         posInArray = 0;
         Event1.rxBufferSizeTrigger = 1;
       }
-
     }
     //sendPkt(4, 0X24, 4);
   }
 
   Serial.println("BUFFERTRIGGER");
   Serial.println(Event1.rxBufferSizeTrigger);
-
   print_flag = true;
-
-
-
 }
 
 
@@ -165,36 +148,17 @@ void rx1Resync()
       Serial.println(rcvdPkt[2]);
       //Serial.println(rcvdPkt[3]);
       posInArray--;
-
     }
   }
 }
 
-
-
-void sendPkt(Vector<uint8_t> packetToSend)
+void sendPkt(Vector<uint8_t>* packetToSend)
 {
-  uint8_t pkt[256];
 
-  for (int t = 0; t < 255; t++)
-  {
-    pkt[t] = 0;
-  }
-
-  pkt[0] = 0XFF;
-  pkt[1] = 0XFF;
-  pkt[2] = 0;
-  pkt[3] = 0X04;
-  pkt[4] = _READ_SERVO_DATA;
-  pkt[5] = 0;
-  pkt[6] = 0;
-  pkt[7]=0;
-  //digitalWrite(3,HIGH);
-
-  Event1.write(pkt, 8);
+  Event1.write(packetToSend->data(),packetToSend->size());
   Event1.flush();
+  Serial.println("Sent off");
   //digitalWrite(3,LOW);
-
 }
 
 

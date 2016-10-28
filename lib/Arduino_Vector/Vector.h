@@ -65,9 +65,9 @@ template<class T, class A = Simple_alloc<T> >
 class Vector {
 
 	A alloc;
-
-	int sz;
 	T* elem;
+	int sz;
+
 	int space;
 
 	Vector(const Vector&);			//private copy constrution because I
@@ -76,11 +76,13 @@ class Vector {
 									//be expecting it.
 
 public:
+
 	Vector() : sz(0), elem(0), space(0) {}
 	Vector(const int s) : sz(0) {
 		reserve(s);
 	}
-
+	T* data(){return elem;};
+	T at(unsigned int n){return elem[n];};
 	Vector& operator=(const Vector&);	//copy assignment
 
 	~Vector() {
@@ -95,7 +97,6 @@ public:
 
 	void reserve(int newalloc);
 	void push_back(const T& val);
-
 };
 
 template<class T, class A>

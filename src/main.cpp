@@ -1,8 +1,8 @@
 #include <UartEvent.h>
 #include <DynamixelMessage.h>
 
-//DynamixelMessage Test(0X02,0X04,false,false,0X26,0X01);
-
+DynamixelMessage one(0X02,0X04,false,false,0X24,0X01);
+DynamixelMessage two(0X04,0X04,false,false,0X24,0X01);
 Uart1Event Event1;//UART A of the Teensy
 Uart2Event Event2;//UART B of the Teensy
 Uart3Event Event3;//UART C of the Teensy
@@ -10,18 +10,24 @@ Uart3Event Event3;//UART C of the Teensy
 
 volatile bool print_flag = false;
 volatile bool switch_flag = false;
-volatile uint8_t rcvdPkt[256];
+volatile uint8_t rcvdPkt[255];
 volatile uint16_t posInArray = 0;
 volatile uint16_t lengthOfCurrentPkt = 0;
 volatile bool Sync = true;
 volatile uint16_t numOfBytesToRead = 4;
 volatile uint8_t toSerialQueue[255];
-volatile uint8_t toPortAQueue[255];
+volatile Vector<uint8_t> toPortAQueue;
 volatile bool scanMode=false;
 uint8_t IdMap[255];
+uint8_t pktFromSerial[255];
+uint8_t serialCounter =0;
 void tx1Event();
+void tx2Event();
 void rx1Event();
+void rx2Event();
 void rx1Resync();
+void fetchSerial();
+
 Vector<uint8_t> MessageVector;
 void sendPkt(Vector<uint8_t>* packetToSend);
 void scanPort(Vector<uint8_t>* packetToSend);
@@ -37,20 +43,24 @@ void setup()
   Event1.clear();
   pinMode(13, OUTPUT);
 
+
 }
 
 void loop()
 {
 
-  //digitalWrite(13, HIGH);
-  //delay(10);
-  //Test.assemblePacket(&MessageVector);
-  //sendPkt(&MessageVector);
-  scanPort(&MessageVector);
-  delay(1000);
-  //digitalWrite(13, LOW);
-  //delay(10);
+fetchSerial();
+delay(10);
+  /*
+  one.assemblePacket(&MessageVector);
+  sendPkt(&MessageVector);
+  delay(100);
+  two.assemblePacket(&MessageVector);
+  sendPkt(&MessageVector);
+  delay(100);*/
 }
+
+
 void scanPort(Vector<uint8_t>* packetToSend)
 {
   scanMode=true;
@@ -65,44 +75,36 @@ void scanPort(Vector<uint8_t>* packetToSend)
     Scan.assemblePacket(&MessageVector);
     sendPkt(&MessageVector);
   }
-  /*int noOfReadBytes=0;
-  for(int j=0;j<255;j++)
-  {
-    rcvdPkt[j]=0;
-  }
-  for(int i = 0;i<255;i++)
-  {
-    delay(1);
-    DynamixelMessage Scan(i,0X04,false,false,0X03,0X01);
-    Scan.assemblePacket(&MessageVector);
-    Event1.write(packetToSend->data(),packetToSend->size());
-    Event1.flush();
-    delay(1);
-    while(Event1.available() && noOfReadBytes<7)
-    {
-      rcvdPkt[noOfReadBytes]=Event1.read();
-      noOfReadBytes++;
-      //Serial.println(rcvdPkt[3]);
-      if (noOfReadBytes==7)
-      {
-        noOfReadBytes=0;
-        for(int j=0;j<255;j++)
-        {
-          rcvdPkt[j]=0;
-        }
-      }
-    }
-  }*/
+  scanMode=false;
 }
 void tx1Event(void)
 {
-
-  //Serial.println("tx1Event triggered");
+  Serial.println("txEvent from Port A triggered");
 }
+
+void fetchSerial()
+{
+    while(Serial.available())
+    {
+      Serial.println("Theres stuff in the USB buffer!");
+      pktFromSerial[serialCounter]=Serial.read();
+      serialCounter++;
+      if (serialCounter>6)
+      {
+        Serial.println("Resetting Counter, the read packet was:");
+        for(int j=0;j<7;j++)
+        {
+            Serial.println(pktFromSerial[j]);
+            serialCounter=0;
+        }
+      }
+    }
+  }
 
 
 void rx1Event()
 {
+  Serial.println("Incoming Bytes from Port A");
   if (Sync == true)
   {
     Serial.println("IN SYNC");
@@ -117,7 +119,7 @@ void rx1Event()
     {
 
       rcvdPkt[posInArray] = Event1.read();
-      //Serial.println(rcvdPkt[posInArray]);
+      Serial.println(rcvdPkt[posInArray]);
       posInArray++;
     }
 
@@ -131,13 +133,13 @@ void rx1Event()
         Serial.println("Hey I found Id :");
         Serial.println(rcvdPkt[2]);
         IdMap[rcvdPkt[2]]=1;
-        for (int k=0;k<100;k++)
+        /*for (int k=0;k<100;k++)
         {
           Serial.println("Your Id Map looks like this:");
           Serial.println(k);
           Serial.println("this Id is connected to the following Port:");
           Serial.print(IdMap[k]);
-        }
+        }*/
       }
       //Test.assemblePacket(&MessageVector);
       //sendPkt(&MessageVector);
@@ -157,8 +159,8 @@ void rx1Event()
       }
     }
   }
-  Serial.println("BUFFERTRIGGER");
-  Serial.println(Event1.rxBufferSizeTrigger);
+  //Serial.println("BUFFERTRIGGER");
+  //Serial.println(Event1.rxBufferSizeTrigger);
   print_flag = true;
 }
 

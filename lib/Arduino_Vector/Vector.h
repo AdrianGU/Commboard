@@ -85,7 +85,8 @@ public:
 	T at(unsigned int n){return elem[n];};
 	Vector& operator=(const Vector&);	//copy assignment
 
-	~Vector() {
+	~Vector()
+	{
 		for(int i=0; i<sz; ++i) alloc.destroy(&elem[i]);
 	}
 
@@ -97,6 +98,7 @@ public:
 
 	void reserve(int newalloc);
 	void push_back(const T& val);
+	void clear(){sz=0;};
 };
 
 template<class T, class A>

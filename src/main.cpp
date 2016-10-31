@@ -1,7 +1,8 @@
 #include <UartEvent.h>
 #include <DynamixelMessage.h>
 
-DynamixelMessage Test(0X02,0X04,false,false,0X03,0X01);
+//DynamixelMessage Test(0X02,0X04,false,false,0X26,0X01);
+
 Uart1Event Event1;//UART A of the Teensy
 Uart2Event Event2;//UART B of the Teensy
 Uart3Event Event3;//UART C of the Teensy
@@ -16,17 +17,19 @@ volatile bool Sync = true;
 volatile uint16_t numOfBytesToRead = 4;
 volatile uint8_t toSerialQueue[255];
 volatile uint8_t toPortAQueue[255];
-volatile uint8_t toPortBQueue[255];
-volatile uint8_t toPortCQueue[255];
+volatile bool scanMode=false;
+uint8_t IdMap[255];
 void tx1Event();
 void rx1Event();
+void rx1Resync();
 Vector<uint8_t> MessageVector;
 void sendPkt(Vector<uint8_t>* packetToSend);
+void scanPort(Vector<uint8_t>* packetToSend);
 
 
 void setup()
 {
-  Event1.clear();
+
   Event1.txEventHandler = tx1Event;
   Event1.rxEventHandler = rx1Event;
   Event1.rxBufferSizeTrigger = 1;
@@ -38,30 +41,63 @@ void setup()
 
 void loop()
 {
-  digitalWrite(13, HIGH);
-  delay(500);
-  Test.assemblePacket(&MessageVector);
-  sendPkt(&MessageVector);
-  digitalWrite(13, LOW);
-  delay(500);
-}
 
+  //digitalWrite(13, HIGH);
+  //delay(10);
+  //Test.assemblePacket(&MessageVector);
+  //sendPkt(&MessageVector);
+  scanPort(&MessageVector);
+  delay(1000);
+  //digitalWrite(13, LOW);
+  //delay(10);
+}
+void scanPort(Vector<uint8_t>* packetToSend)
+{
+  scanMode=true;
+  for (int j=0;j<254;j++)
+  {
+    IdMap[j]=0;
+  }
+  for(int i = 0;i<254;i++)
+  {
+    delay(1);
+    DynamixelMessage Scan(i,0X04,false,false,0X03,0X01);
+    Scan.assemblePacket(&MessageVector);
+    sendPkt(&MessageVector);
+  }
+  /*int noOfReadBytes=0;
+  for(int j=0;j<255;j++)
+  {
+    rcvdPkt[j]=0;
+  }
+  for(int i = 0;i<255;i++)
+  {
+    delay(1);
+    DynamixelMessage Scan(i,0X04,false,false,0X03,0X01);
+    Scan.assemblePacket(&MessageVector);
+    Event1.write(packetToSend->data(),packetToSend->size());
+    Event1.flush();
+    delay(1);
+    while(Event1.available() && noOfReadBytes<7)
+    {
+      rcvdPkt[noOfReadBytes]=Event1.read();
+      noOfReadBytes++;
+      //Serial.println(rcvdPkt[3]);
+      if (noOfReadBytes==7)
+      {
+        noOfReadBytes=0;
+        for(int j=0;j<255;j++)
+        {
+          rcvdPkt[j]=0;
+        }
+      }
+    }
+  }*/
+}
 void tx1Event(void)
 {
-  //Serial.println("tx1Event triggered");
-}
 
-void scanPort(int portNr)
-{
-  if (portNr == 1)
-  {
-    //Event1.rxEventHandler=rx1scanEvent;
-    for (int i = 0; i < 255; i++)
-    {
-    //  sendPkt(Test.assemblePacket());
-      delayMicroseconds(300);
-    }
-  }
+  //Serial.println("tx1Event triggered");
 }
 
 
@@ -81,7 +117,7 @@ void rx1Event()
     {
 
       rcvdPkt[posInArray] = Event1.read();
-      Serial.println(rcvdPkt[posInArray]);
+      //Serial.println(rcvdPkt[posInArray]);
       posInArray++;
     }
 
@@ -90,8 +126,21 @@ void rx1Event()
       //received a complete packet from Dynamixel
       Event1.rxBufferSizeTrigger = 4;
       posInArray = 0;
-
-
+      if(scanMode)
+      {
+        Serial.println("Hey I found Id :");
+        Serial.println(rcvdPkt[2]);
+        IdMap[rcvdPkt[2]]=1;
+        for (int k=0;k<100;k++)
+        {
+          Serial.println("Your Id Map looks like this:");
+          Serial.println(k);
+          Serial.println("this Id is connected to the following Port:");
+          Serial.print(IdMap[k]);
+        }
+      }
+      //Test.assemblePacket(&MessageVector);
+      //sendPkt(&MessageVector);
     } else {
       if (posInArray >= 4)
       {
@@ -102,14 +151,12 @@ void rx1Event()
       {
         Serial.println("Weird buffersize, setting sync to false");
         Sync = false;
-        //Event1.rxEventHandler = rx1Resync;
+        Event1.rxEventHandler = rx1Resync;
         posInArray = 0;
         Event1.rxBufferSizeTrigger = 1;
       }
     }
-    //sendPkt(4, 0X24, 4);
   }
-
   Serial.println("BUFFERTRIGGER");
   Serial.println(Event1.rxBufferSizeTrigger);
   print_flag = true;
@@ -118,6 +165,7 @@ void rx1Event()
 
 void rx1Resync()
 {
+
   if (!Event1.available()) {
     return;
   }
@@ -128,11 +176,11 @@ void rx1Resync()
   {
     if (rcvdPkt[0] == 255 && rcvdPkt[1] == 255)
     {
-      Serial.println("Sent off array was:");
-      Serial.println(rcvdPkt[0]);
-      Serial.println(rcvdPkt[1]);
-      Serial.println(rcvdPkt[2]);
-      Serial.println(rcvdPkt[3]);
+      //Serial.println("Sent off array was:");
+      //Serial.println(rcvdPkt[0]);
+      //Serial.println(rcvdPkt[1]);
+      //Serial.println(rcvdPkt[2]);
+      //Serial.println(rcvdPkt[3]);
       Sync = true;
       Event1.rxBufferSizeTrigger = rcvdPkt[3] + 4;
       //numOfBytesToRead=rcvdPkt[3]+4;
@@ -143,9 +191,9 @@ void rx1Resync()
       rcvdPkt[0] = rcvdPkt[1];
       rcvdPkt[1] = rcvdPkt[2];
       rcvdPkt[2] = rcvdPkt[3];
-      Serial.println(rcvdPkt[0]);
-      Serial.println(rcvdPkt[1]);
-      Serial.println(rcvdPkt[2]);
+      //Serial.println(rcvdPkt[0]);
+      //Serial.println(rcvdPkt[1]);
+      //Serial.println(rcvdPkt[2]);
       //Serial.println(rcvdPkt[3]);
       posInArray--;
     }
@@ -155,10 +203,14 @@ void rx1Resync()
 void sendPkt(Vector<uint8_t>* packetToSend)
 {
 
-  Event1.write(packetToSend->data(),packetToSend->size());
-  Event1.flush();
-  Serial.println("Sent off");
-  //digitalWrite(3,LOW);
+
+
+Event1.write(packetToSend->data(),packetToSend->size());
+Event1.flush();
+packetToSend->clear();
+
+
+//digitalWrite(3,LOW);
 }
 
 

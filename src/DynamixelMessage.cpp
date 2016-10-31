@@ -6,13 +6,14 @@ DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, bool write, bool 
 {
   //When calling the constructor, all given variables are written to private variables in the class.
     DynamixelMessage::_id=id;
-    DynamixelMessage::_length=length;
+    //DynamixelMessage::_length=length;
     DynamixelMessage::_write=write;
     DynamixelMessage::_syncwrite=syncwrite;
     DynamixelMessage::_reg=reg;
     DynamixelMessage::_value=value;
-
 }
+
+
 void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
 //This function will assemble a packet correctly so that it can be sent to, and be unterstood by a Dynamixel Servo-Drive.
 //The function will use the private variables that were given when calling the constructor
@@ -23,7 +24,7 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
 
 {
     uint8_t pkt[255];
-    uint8_t checksumResult;
+    uint8_t checksumResult =0;
 
     for (int t = 0; t < 255; t++)
     {
@@ -33,10 +34,12 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
     pkt[0] = 0XFF;
     pkt[1] = 0XFF;
     pkt[2] = DynamixelMessage::_id;
-    pkt[3] = DynamixelMessage::_length+4;
+    pkt[3] = 1 + 1 + 2;
+    //The length is determined as "number of parameters(N) +2". For the case of just reading one byte from one register this will result in
+    // a length of 4 (register to read from (1st parameter) + payload of how many bytes to read from that register on (2nd parameter) + 2 )
+    // This needs to be adjusted for more complex request packets
 
     //Determining what type of message(READ,WRITE,SYNCWRITE) to send to the Dynamixel.
-    //
     if(is_write())
     {
         pkt[4]=_WRITE_SERVO_DATA;
@@ -55,20 +58,29 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
 
     //checksum calculation = The checksum is calculated by bit-wise inverting the sum of all parameters from the message except for the
     //first two bytes ;
-    for(int p=2;p<pkt[3];p++)
+    for(int p=2;p<=pkt[3]+2;p++)
     {
+
         checksumResult=checksumResult+pkt[p];
     }
-    checksumResult=~(checksumResult);
-    pkt[pkt[3]-1]=checksumResult;
+    checksumResult=~(checksumResult)&255;
+
+    pkt[pkt[3]+3]=checksumResult;
+    for(int k =0;k<pkt[3]+4;k++)
+    {
+      //Serial.println(pkt[k]);
+    }
 
     //Pushing the message into the vector pointer that got passed when calling
     //the function.
     //This will dynamically allocate the space in the Vector in main.cpp depending on how big pkt[3] is e.g. how big the packet is.
-    for (int j=0;j<pkt[3];j++)
+    //Serial.println("Beginning of Message");
+    for (int j=0;j<pkt[3]+4;j++)
     {
+
       assembledPacket->push_back(pkt[j]);
     }
+    //Serial.println("End of Message");
 }
 
 //Definition of Getter-/Setter-Methods for the private variables

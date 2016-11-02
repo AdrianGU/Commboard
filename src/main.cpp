@@ -1,8 +1,8 @@
 #include <UartEvent.h>
 #include <DynamixelMessage.h>
 
-DynamixelMessage one(0X02,0X04,false,false,0X24,0X01);
-DynamixelMessage two(0X04,0X04,false,false,0X24,0X01);
+DynamixelMessage one(0X02,0X04,0X02,0X24,0X01);
+DynamixelMessage two(0X04,0X04,0X02,0X24,0X01);
 Uart1Event Event1;//UART A of the Teensy
 Uart2Event Event2;//UART B of the Teensy
 Uart3Event Event3;//UART C of the Teensy
@@ -50,9 +50,10 @@ void loop()
 {
 
 fetchSerial();
-delay(10);
-  /*
-  one.assemblePacket(&MessageVector);
+delay(1000);
+
+  /*one.assemblePacket(&MessageVector);
+  delay(1000);
   sendPkt(&MessageVector);
   delay(100);
   two.assemblePacket(&MessageVector);
@@ -71,7 +72,7 @@ void scanPort(Vector<uint8_t>* packetToSend)
   for(int i = 0;i<254;i++)
   {
     delay(1);
-    DynamixelMessage Scan(i,0X04,false,false,0X03,0X01);
+    DynamixelMessage Scan(i,0X04,0X02,0X03,0X01);
     Scan.assemblePacket(&MessageVector);
     sendPkt(&MessageVector);
   }
@@ -79,27 +80,39 @@ void scanPort(Vector<uint8_t>* packetToSend)
 }
 void tx1Event(void)
 {
-  Serial.println("txEvent from Port A triggered");
+  //Serial.println("txEvent from Port A triggered");
 }
 
 void fetchSerial()
 {
-    while(Serial.available())
+  uint8_t lengthfromSerial=0;
+
+  while(Serial.available())
+  {
+    Serial.println("Theres stuff in the USB buffer!");
+    pktFromSerial[serialCounter]=Serial.read();
+    Serial.println(pktFromSerial[serialCounter]);
+    serialCounter++;
+    if (serialCounter>3)
     {
-      Serial.println("Theres stuff in the USB buffer!");
-      pktFromSerial[serialCounter]=Serial.read();
-      serialCounter++;
-      if (serialCounter>6)
+      lengthfromSerial=pktFromSerial[3];
+    }
+    if (serialCounter>lengthfromSerial+4)
+    {
+      serialCounter=0;
+      Serial.println("Resetting Counter, the read packet was:");
+      /*for(int j=0;j<7;j++)
       {
-        Serial.println("Resetting Counter, the read packet was:");
-        for(int j=0;j<7;j++)
-        {
-            Serial.println(pktFromSerial[j]);
-            serialCounter=0;
-        }
-      }
+          Serial.println(pktFromSerial[lengthfromSerial+3]);
+      }*/
+      DynamixelMessage fromSerial(pktFromSerial[2],pktFromSerial[3],pktFromSerial[4],pktFromSerial[5],pktFromSerial[6]);
+      fromSerial.assemblePacket(&MessageVector);
+      sendPkt(&MessageVector);
+
+
     }
   }
+}
 
 
 void rx1Event()

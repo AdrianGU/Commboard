@@ -81,7 +81,7 @@ class DynamixelMessage
     public:
         //Creates a Dynamixel Object that automatically saves the values given to private variables in the class
 
-        DynamixelMessage(uint8_t id,uint8_t length, bool write, bool syncwrite, uint8_t reg, uint8_t value);
+        DynamixelMessage(uint8_t id,uint8_t length, uint8_t messageType, uint8_t reg, uint8_t value);
         void assemblePacket(Vector<uint8_t>* assembledPacket2);
         void assembleScanPortPacket(Vector<uint8_t>* assembledPacket2);
 
@@ -90,8 +90,6 @@ class DynamixelMessage
         void set_id(uint8_t _id);
         uint8_t get_length() const;
         void set_length(uint8_t _length);
-        bool is_write() const;
-        void set_write(bool _write);
         bool is_syncwrite() const;
         void set_syncwrite(bool _syncwrite);
         uint8_t get_reg() const;
@@ -102,8 +100,7 @@ class DynamixelMessage
     private:
         uint8_t _id;
         uint8_t _length;
-        bool _write;
-        bool _syncwrite;
+        uint8_t _messageType;
         uint8_t _reg;
         uint8_t _value;
 };

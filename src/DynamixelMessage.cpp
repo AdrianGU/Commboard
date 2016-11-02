@@ -2,13 +2,11 @@
 
 
 
-DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, bool write, bool syncwrite, uint8_t reg, uint8_t value)
+DynamixelMessage::DynamixelMessage(uint8_t id, uint8_t length, uint8_t messageType, uint8_t reg, uint8_t value)
 {
   //When calling the constructor, all given variables are written to private variables in the class.
     DynamixelMessage::_id=id;
-    //DynamixelMessage::_length=length;
-    DynamixelMessage::_write=write;
-    DynamixelMessage::_syncwrite=syncwrite;
+    DynamixelMessage::_messageType=messageType;
     DynamixelMessage::_reg=reg;
     DynamixelMessage::_value=value;
 }
@@ -40,19 +38,7 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
     // This needs to be adjusted for more complex request packets
 
     //Determining what type of message(READ,WRITE,SYNCWRITE) to send to the Dynamixel.
-    if(is_write())
-    {
-        pkt[4]=_WRITE_SERVO_DATA;
-
-    }else if(is_syncwrite())
-    {
-        pkt[4] = _WRITE_SYNC_SERVO_DATA;
-
-    }else
-    {
-        pkt[4] = _READ_SERVO_DATA;
-
-    }
+    pkt[4]=DynamixelMessage::_messageType;
     pkt[5] =DynamixelMessage::_reg;
     pkt[6] =DynamixelMessage::_value;
 
@@ -77,7 +63,7 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
     //Serial.println("Beginning of Message");
     for (int j=0;j<pkt[3]+4;j++)
     {
-
+      //Serial.println(assembledPacket->at(j));
       assembledPacket->push_back(pkt[j]);
     }
     //Serial.println("End of Message");
@@ -98,22 +84,6 @@ uint8_t DynamixelMessage::get_length() const {
 
 void DynamixelMessage::set_length(uint8_t _length) {
     DynamixelMessage::_length = _length;
-}
-
-bool DynamixelMessage::is_write() const {
-    return _write;
-}
-
-void DynamixelMessage::set_write(bool _write) {
-    DynamixelMessage::_write = _write;
-}
-
-bool DynamixelMessage::is_syncwrite() const {
-    return _syncwrite;
-}
-
-void DynamixelMessage::set_syncwrite(bool _syncwrite) {
-    DynamixelMessage::_syncwrite = _syncwrite;
 }
 
 uint8_t DynamixelMessage::get_reg() const {

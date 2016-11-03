@@ -18,6 +18,9 @@ volatile uint16_t numOfBytesToRead = 4;
 volatile uint8_t toSerialQueue[255];
 volatile Vector<uint8_t> toPortAQueue;
 volatile bool scanMode=false;
+volatile bool USBmode=true;
+uint8_t USBrcvdPkt[255];
+uint8_t USBposInArray;
 uint8_t IdMap[255];
 uint8_t pktFromSerial[255];
 uint8_t serialCounter =0;
@@ -51,9 +54,7 @@ void setup()
 void loop()
 {
 rx1SerialEvent();
-
-
-
+delay(100);
   /*one.assemblePacket(&MessageVector);
   delay(1000);
   sendPkt(&MessageVector);
@@ -87,91 +88,117 @@ void tx1Event(void)
 
 void rx1SerialEvent()
 {
-
-  while(Serial.available())
+  USBposInArray=0;
+  if (!Serial.available())
   {
-
-    Serial.println("Incoming Bytes from USB");
-    if (Sync == true)
+    return;
+  }
+    while(Serial.available())
     {
-
-      Serial.println("IN SYNC");
-      if (posInArray >= 4)
+      //Serial.println("Incoming Bytes from USB");
+      if(USBposInArray==0)
       {
-        numOfBytesToRead = rcvdPkt[3] + 4;
-      } else {
-        numOfBytesToRead = 4;
+        USBrcvdPkt[USBposInArray]=Serial.read();
+        USBposInArray++;
       }
-
-      while (Serial.available() && posInArray < numOfBytesToRead)
+      if(USBposInArray>3)
       {
-
-        rcvdPkt[posInArray] = Serial.read();
-        Serial.println(rcvdPkt[posInArray]);
-        posInArray++;
-      }
-
-
-      if (posInArray > 4 && posInArray >= rcvdPkt[3] + 4) {
-        //received a complete packet from Dynamixel
-        posInArray = 0;
-      } else {
-        if (posInArray >= 4)
+        if(USBrcvdPkt[0] == 255 && USBrcvdPkt[1] == 255)
         {
-          numOfBytesToRead = rcvdPkt[3] + 4;
-          digitalWrite(13,HIGH);
+          //Serial.println("Found packet prefix, id and length!Reading rest of Packet");
+          for(int i=USBrcvdPkt[3];i<=USBrcvdPkt[3]+3;i++)
+          {
+            USBrcvdPkt[USBposInArray]=Serial.read();
+            USBposInArray++;
+          }
+          //Serial.println("The currently read packet is: ");
+          /*for (int j=0;j<USBrcvdPkt[3]+4;j++)
+          {
+            Serial.println(USBrcvdPkt[j]);
+          }*/
+          if ((USBposInArray-1)==(USBrcvdPkt[3]+3))
+          {
+            uint8_t testchksum=0;
+
+            for(int p=2;p<=USBrcvdPkt[3]+2;p++)
+            {
+                testchksum=testchksum+USBrcvdPkt[p];
+            }
+            testchksum=~(testchksum)&255;
+            if(testchksum==USBrcvdPkt[USBposInArray-1])
+            {
+              /*Serial.println("Message looks good! Putting this into a Dynamixel Object and sending to its destination : ");
+              for(int k=0;k<USBposInArray;k++)
+              {
+                  Serial.println(USBrcvdPkt[k]);
+              }*/
+              DynamixelMessage USBMessage(USBrcvdPkt[2],USBrcvdPkt[3],USBrcvdPkt[4],USBrcvdPkt[5],USBrcvdPkt[6]);
+              USBMessage.assemblePacket(&MessageVector);
+              sendPkt(&MessageVector);
+
+              USBposInArray=0;
+            }
+          }
         }
-        //Event1.rxBufferSizeTrigger = (numOfBytesToRead - posInArray)
-        rx1SerialEvent();
-        if ((rcvdPkt[3] > 100) | (rcvdPkt[3] <= 0))
+      }else
+      {
+        if(USBposInArray<3)
         {
-          Serial.println("Weird buffersize, setting sync to false");
-          Sync = false;
-          posInArray = 0;
-          rx1SerialResync();
+          USBrcvdPkt[USBposInArray]=Serial.read();
+          USBposInArray++;
+          if(USBrcvdPkt[0] == 255 && USBrcvdPkt[1] == 255)
+          {
+            //Serial.println("Found Packet prefix, trying to retreive ID+Length ");
+            USBrcvdPkt[USBposInArray]=Serial.read();
+            USBposInArray++;
+            USBrcvdPkt[USBposInArray]=Serial.read();
+            USBposInArray++;
+          }
         }
       }
-    }
-    print_flag = true;
     }
   }
 
 
-
 void rx1Event()
 {
-  Serial.println("Incoming Bytes from Port A");
+
+  //Serial.println("ping");
+  //Serial.println("Incoming Bytes from Port A");
   if (Sync == true)
   {
-    Serial.println("IN SYNC");
+    //Serial.println("IN SYNC");
     if (posInArray >= 4)
     {
       numOfBytesToRead = rcvdPkt[3] + 4;
     } else {
       numOfBytesToRead = 4;
     }
-
     while (Event1.available() && posInArray < numOfBytesToRead)
     {
-
       rcvdPkt[posInArray] = Event1.read();
-      Serial.println(rcvdPkt[posInArray]);
+      //Serial.println(rcvdPkt[posInArray]);
       posInArray++;
     }
 
-
     if (posInArray > 4 && posInArray >= rcvdPkt[3] + 4) {
       //received a complete packet from Dynamixel
-      Event1.rxBufferSizeTrigger = 4;
-      posInArray = 0;
+
       if(scanMode)
       {
-        Serial.println("Hey I found Id :");
-        Serial.println(rcvdPkt[2]);
+        //Serial.println("Hey I found Id :");
+        //Serial.println(rcvdPkt[2]);
         IdMap[rcvdPkt[2]]=1;
-
+      }else if (USBmode)
+      {
+        Serial.println("Sending back this Message to USB :");
+        for (int i=0;i<posInArray;i++)
+        {
+          Serial.println(rcvdPkt[i]);
+        }
       }
-
+      Event1.rxBufferSizeTrigger = 4;
+      posInArray = 0;
     } else {
       if (posInArray >= 4)
       {
@@ -180,7 +207,7 @@ void rx1Event()
       Event1.rxBufferSizeTrigger = (numOfBytesToRead - posInArray);
       if ((Event1.rxBufferSizeTrigger > 100) | (Event1.rxBufferSizeTrigger <= 0))
       {
-        Serial.println("Weird buffersize, setting sync to false");
+        //Serial.println("Weird buffersize, setting sync to false");
         Sync = false;
         Event1.rxEventHandler = rx1Resync;
         posInArray = 0;
@@ -193,35 +220,6 @@ void rx1Event()
   print_flag = true;
 }
 
-void rx1SerialResync()
-{
-
-  if (!Serial.available()) {
-    return;
-  }
-  rcvdPkt[posInArray] = ((uint8_t) Serial.read());
-  posInArray++;
-  if (posInArray >= 4)
-  {
-    if (rcvdPkt[0] == 255 && rcvdPkt[1] == 255)
-    {
-      //Serial.println("Sent off array was:");
-      //Serial.println(rcvdPkt[0]);
-      //Serial.println(rcvdPkt[1]);
-      //Serial.println(rcvdPkt[2]);
-      //Serial.println(rcvdPkt[3]);
-      Sync = true;
-      rx1SerialEvent();
-    } else {
-      Serial.println("rolling array");
-      rcvdPkt[0] = rcvdPkt[1];
-      rcvdPkt[1] = rcvdPkt[2];
-      rcvdPkt[2] = rcvdPkt[3];
-
-      posInArray--;
-    }
-  }
-}
 
 
 void rx1Resync()
@@ -252,10 +250,10 @@ void rx1Resync()
       rcvdPkt[0] = rcvdPkt[1];
       rcvdPkt[1] = rcvdPkt[2];
       rcvdPkt[2] = rcvdPkt[3];
-      //Serial.println(rcvdPkt[0]);
-      //Serial.println(rcvdPkt[1]);
-      //Serial.println(rcvdPkt[2]);
-      //Serial.println(rcvdPkt[3]);
+      Serial.println(rcvdPkt[0]);
+      Serial.println(rcvdPkt[1]);
+      Serial.println(rcvdPkt[2]);
+      Serial.println(rcvdPkt[3]);
       posInArray--;
     }
   }

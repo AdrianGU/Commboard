@@ -84,6 +84,7 @@ class DynamixelMessage
         DynamixelMessage(uint8_t id,uint8_t length, uint8_t messageType, uint8_t reg, uint8_t value);
         void assemblePacket(Vector<uint8_t>* assembledPacket2);
         void assembleScanPortPacket(Vector<uint8_t>* assembledPacket2);
+        
 
         //Declaration of getter-/setter-Methods for all private variables
         uint8_t get_id() const;

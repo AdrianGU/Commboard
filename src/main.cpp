@@ -1,12 +1,13 @@
 #include <UartEvent.h>
 #include <DynamixelMessage.h>
+#include <QueueArray.h>
 
-DynamixelMessage one(0X02,0X04,0X02,0X24,0X01);
-DynamixelMessage two(0X04,0X04,0X02,0X24,0X01);
+DynamixelMessage* TestMessage1 = new DynamixelMessage(0X02,0X04,0X02,0X24,0X01);
+DynamixelMessage* TestMessage2 = new DynamixelMessage(0X04,0X04,0X02,0X24,0X01);
 Uart1Event Event1;//UART A of the Teensy
 Uart2Event Event2;//UART B of the Teensy
 Uart3Event Event3;//UART C of the Teensy
-
+IntervalTimer txTimer;
 
 volatile bool print_flag = false;
 volatile bool switch_flag = false;
@@ -16,9 +17,10 @@ volatile uint16_t lengthOfCurrentPkt = 0;
 volatile bool Sync = true;
 volatile uint16_t numOfBytesToRead = 4;
 volatile uint8_t toSerialQueue[255];
-volatile Vector<uint8_t> toPortAQueue;
+//Vector<DynamixelMessage*> toPortAQueue;
 volatile bool scanMode=false;
-volatile bool USBmode=true;
+volatile bool USBmode=false;
+QueueArray <DynamixelMessage*> Queue_A(50);
 uint8_t USBrcvdPkt[255];
 uint8_t USBposInArray;
 uint8_t IdMap[255];
@@ -32,6 +34,7 @@ void rx1Resync();
 void rx1SerialResync();
 void rx1SerialEvent();
 void fetchSerial();
+void messageReceival();
 
 Vector<uint8_t> MessageVector;
 void sendPkt(Vector<uint8_t>* packetToSend);
@@ -40,7 +43,7 @@ void scanPort(Vector<uint8_t>* packetToSend);
 
 void setup()
 {
-
+  //toPortAQueue=new Vector<DynamixelMessage*>;
   Event1.txEventHandler = tx1Event;
   Event1.rxEventHandler = rx1Event;
   Event1.rxBufferSizeTrigger = 1;
@@ -53,15 +56,40 @@ void setup()
 
 void loop()
 {
-rx1SerialEvent();
+  Queue_A.push(TestMessage1);
+  Queue_A.push(TestMessage2);
+  Queue_A.pop()->assemblePacket(&MessageVector);
+  sendPkt(&MessageVector);
+  delay(1000);
+  Queue_A.pop()->assemblePacket(&MessageVector);
+  sendPkt(&MessageVector);
+  delay(1000);
+
+//rx1SerialEvent();
+//Serial.println("Calling assemblePacket()");
+
+//Queue_A.peek();
+/*
 delay(100);
-  /*one.assemblePacket(&MessageVector);
+Serial.println("Calling assemblePacket");
+Queue_A.pop()->assemblePacket(&MessageVector);
+*/
+//delay(100);
+//Serial.println("Sending Packet");
+//sendPkt(&MessageVector);
+
+
+/*
+  one.assemblePacket(&MessageVector);
+  Serial.println(sizeof(one));
   delay(1000);
   sendPkt(&MessageVector);
-  delay(100);
+  delay(1000);//
   two.assemblePacket(&MessageVector);
+  Serial.println(sizeof(two));
   sendPkt(&MessageVector);
-  delay(100);*/
+  delay(1000);
+*/
 }
 
 
@@ -83,8 +111,8 @@ void scanPort(Vector<uint8_t>* packetToSend)
 }
 void tx1Event(void)
 {
-  //Serial.println("txEvent from Port A triggered");
 }
+
 
 void rx1SerialEvent()
 {
@@ -119,7 +147,6 @@ void rx1SerialEvent()
           if ((USBposInArray-1)==(USBrcvdPkt[3]+3))
           {
             uint8_t testchksum=0;
-
             for(int p=2;p<=USBrcvdPkt[3]+2;p++)
             {
                 testchksum=testchksum+USBrcvdPkt[p];
@@ -132,9 +159,10 @@ void rx1SerialEvent()
               {
                   Serial.println(USBrcvdPkt[k]);
               }*/
-              DynamixelMessage USBMessage(USBrcvdPkt[2],USBrcvdPkt[3],USBrcvdPkt[4],USBrcvdPkt[5],USBrcvdPkt[6]);
-              USBMessage.assemblePacket(&MessageVector);
-              sendPkt(&MessageVector);
+              DynamixelMessage* USBMessage=new DynamixelMessage(USBrcvdPkt[2],USBrcvdPkt[3],USBrcvdPkt[4],USBrcvdPkt[5],USBrcvdPkt[6]);
+              Queue_A.push(USBMessage);
+              //USBMessage.assemblePacket(&MessageVector);
+              //sendPkt(&MessageVector);
 
               USBposInArray=0;
             }
@@ -224,7 +252,6 @@ void rx1Event()
 
 void rx1Resync()
 {
-
   if (!Event1.available()) {
     return;
   }
@@ -258,7 +285,10 @@ void rx1Resync()
     }
   }
 }
+void sendMessage(DynamixelMessage* messageToSend)
+{
 
+}
 void sendPkt(Vector<uint8_t>* packetToSend)
 {
 

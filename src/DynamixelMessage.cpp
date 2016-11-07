@@ -69,6 +69,7 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
     //Serial.println("End of Message");
 }
 
+
 //Definition of Getter-/Setter-Methods for the private variables
 uint8_t DynamixelMessage::get_id() const {
     return _id;

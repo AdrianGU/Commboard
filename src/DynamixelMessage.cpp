@@ -21,6 +21,7 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
 //IMPORTANT NOTE: assemblePacket() is currently implemented for the regular Dynamixel Series only and will not work with the Dynamixel Pro Series.
 
 {
+    assembledPacket->clear();
     uint8_t pkt[255];
     uint8_t checksumResult =0;
 

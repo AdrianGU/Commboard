@@ -53,10 +53,6 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
     checksumResult=~(checksumResult)&255;
 
     pkt[pkt[3]+3]=checksumResult;
-    for(int k =0;k<pkt[3]+4;k++)
-    {
-      //Serial.println(pkt[k]);
-    }
 
     //Pushing the message into the vector pointer that got passed when calling
     //the function.
@@ -67,7 +63,7 @@ void DynamixelMessage::assemblePacket(Vector<uint8_t>* assembledPacket)
       //Serial.println(assembledPacket->at(j));
       assembledPacket->push_back(pkt[j]);
     }
-    //Serial.println("End of Message");
+
 }
 
 

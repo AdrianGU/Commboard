@@ -13,6 +13,10 @@ IntervalTimer txATimer;
 IntervalTimer txBTimer;
 IntervalTimer txCTimer;
 
+uint8_t uartInt1=1;
+uint8_t uartInt2=2;
+uint8_t uartInt3=3;
+
 volatile uint8_t rcvdPkt1[255];
 volatile uint8_t rcvdPkt2[255];
 volatile uint8_t rcvdPkt3[255];
@@ -30,6 +34,10 @@ volatile bool Sync3 = true;
 volatile bool blockedA = false;
 volatile bool blockedB = false;
 volatile bool blockedC = false;
+
+volatile bool busyA=false;
+volatile bool busyB=false;
+volatile bool busyC=false;
 
 volatile uint16_t numOfBytesToRead1 = 4;
 volatile uint16_t numOfBytesToRead2 = 4;
@@ -77,16 +85,24 @@ void rx2SerialResync();
 void rx3Resync();
 void rx3SerialResync();
 
-
-
 void noMessageReceivalA();
 void noMessageReceivalB();
 void noMessageReceivalC();
 
 Vector<uint8_t> MessageVector;
+
+Vector<uint8_t> MessageVectorA;
+Vector<uint8_t> MessageVectorB;
+Vector<uint8_t> MessageVectorC;
+Vector<uint8_t> MessageVectorUSB;
+
 void sendA();
 void sendB();
 void sendC();
+
+void pushToQueue1(DynamixelMessage* messageToPush1);
+void pushToQueue2(DynamixelMessage* messageToPush2);
+void pushToQueue3(DynamixelMessage* messageToPush3);
 
 void scanPort();
 
@@ -116,11 +132,11 @@ void setup()
   Event3.begin(1000000);
   Event3.clear();
 
-  IdMap[2]=1;
-  IdMap[13]=2;
+  //IdMap[2]=1;
+  //IdMap[13]=1;
 
-  //delay(2000);
-  //scanPort();
+  delay(2000);
+  scanPort();
   delay(2000);
 }
 
@@ -157,11 +173,29 @@ void loop()
   //sendPkt(&MessageVector);
 }
 
+void noMessageReceival( Stream*             event,
+                        IntervalTimer*      timer,
+                        volatile bool*      blocked,
+                        volatile uint8_t*   resendCounter,
+                        void(*sendFunctionPointer)(void),
+                        Vector<uint8_t>*    messagevector){
+    timer->end();
+    (*blocked)=false;
+    Serial.print("No Reply from :");
+    Serial.println(messagevector->at(2));
+    if((*resendCounter)<3 && *blocked==false)
+    {
+      event->write(messagevector->data(),messagevector->size());
+      event->flush();
+      (*resendCounter)+=1;
+    }else{
+      sendFunctionPointer();
+    }
+}
 
-
-void noMessageReceivalA()
-{
-
+void noMessageReceivalA(){
+  noMessageReceival(&Event1, &txATimer, &blockedA, &resendCounterA,sendA, &MessageVectorA);
+    /*
     txATimer.end();
     blockedA=false;
     Serial.print("No Reply from :");
@@ -172,10 +206,12 @@ void noMessageReceivalA()
       Event1.flush();
       resendCounterA++;
     }
+    */
 }
-void noMessageReceivalB()
-{
 
+void noMessageReceivalB(){
+    noMessageReceival(&Event2, &txBTimer, &blockedB, &resendCounterB,sendB, &MessageVectorB);
+    /*
     txBTimer.end();
     blockedB=false;
     Serial.print("No Reply from :");
@@ -186,11 +222,12 @@ void noMessageReceivalB()
       Event2.flush();
       resendCounterB++;
     }
+    */
 }
 
-void noMessageReceivalC()
-{
-
+void noMessageReceivalC(){
+    noMessageReceival(&Event3, &txCTimer, &blockedC, &resendCounterC,sendC, &MessageVectorC);
+    /*
     txCTimer.end();
     blockedC=false;
     //Serial.print("No Reply from :");
@@ -201,6 +238,7 @@ void noMessageReceivalC()
       Event3.flush();
       resendCounterC++;
     }
+    */
 }
 
 void scanPort()
@@ -214,56 +252,70 @@ void scanPort()
   for (int j =0;j<20;j++)
   {
 
-    DynamixelMessage* ScanMessage=new DynamixelMessage(j,0X04,0X02,0X03,0X01);
-    ScanMessage->assemblePacket(&MessageVector);
+    DynamixelMessage* ScanMessageA= new DynamixelMessage(j,0X04,0X02,0X03,0X01);
+    DynamixelMessage* ScanMessageB= new DynamixelMessage(j,0X04,0X02,0X03,0X01);
+    DynamixelMessage* ScanMessageC= new DynamixelMessage(j,0X04,0X02,0X03,0X01);
 
-    Queue_A.push(ScanMessage);
-    Queue_B.push(ScanMessage);
-    //Queue_C.push(ScanMessage);
+
+    Queue_A.push(ScanMessageA);
+    Queue_B.push(ScanMessageB);
+    Queue_C.push(ScanMessageC);
 
 
   }
-  delay(100);
-  while(!Queue_A.isEmpty())
-  {
-
     sendA();
-  }
-
-  while(!Queue_B.isEmpty())
-  {
     sendB();
-  }
-  /*
-  while(!Queue_C.isEmpty())
-  {
     sendC();
-  }*/
 
+
+    while(busyA && busyB && busyC)
+    {
+      delay(10);
+    }
     Serial.println("Ports scanned, IdMap looks like this: ");
     for (int i=0;i<254;i++)
     {
-      Serial.print(i+": ");
+      //Serial.print(i+": ");
       Serial.println(IdMap[i]);
     }
-    scanMode=false;
-  }
 
-void tx1Event(void)
+    scanMode=false;
+    }
+
+
+void txEvent( IntervalTimer* timer,
+              volatile bool* blocked,
+              volatile bool* busy,
+              void (*noMessageReceivalFunctionPointer)(void)){
+  (*blocked)=true;
+  (*busy)=true;
+  timer->priority(255);
+  timer->begin(noMessageReceivalFunctionPointer,300);
+}
+
+void tx1Event()
 {
+  txEvent(&txATimer, &blockedA,&busyA, noMessageReceivalA);
+  /*
   blockedA=true;
   txATimer.priority(255);
   txATimer.begin(noMessageReceivalA,200);
+  */
 }
+
 void tx2Event()
 {
+  txEvent(&txBTimer, &blockedB,&busyB, noMessageReceivalB);
+  /*
   blockedB=true;
   txBTimer.priority(255);
   txBTimer.begin(noMessageReceivalB,200);
+  */
 }
 
 void tx3Event()
 {
+  txEvent(&txCTimer, &blockedC,&busyC, noMessageReceivalC);
   /*
   blockedC=true;
   txCTimer.priority(255);
@@ -312,7 +364,6 @@ void rx1SerialEvent()
             testchksum=~(testchksum)&255;
             if(testchksum==USBrcvdPkt[USBposInArray-1])
             {
-
               /*Serial.println("Message looks good! Putting this into a Dynamixel Object and sending to its destination : ");
               for(int k=0;k<USBposInArray;k++)
               {
@@ -323,20 +374,15 @@ void rx1SerialEvent()
 
               if (IdMap[USBrcvdPkt[2]] == 1  &&(scanMode==false))
               {
-                Queue_A.push(USBMessage);
-                sendA();
+                pushToQueue1(USBMessage);
               }
               else if((IdMap[USBrcvdPkt[2]] == 2)  &&(scanMode==false))
               {
-                Queue_B.push(USBMessage);
-                sendB();
+                pushToQueue2(USBMessage);
               }
               else if((IdMap[USBrcvdPkt[2]] == 3) &&(scanMode==false))
               {
-
-                //Queue_C.push(USBMessage);
-                //sendC();
-
+                pushToQueue3(USBMessage);
               }
               else if(IdMap[USBrcvdPkt[2]] == 0)
               {
@@ -367,222 +413,145 @@ void rx1SerialEvent()
   }
 
 
+void rxEvent( UartEvent*          event,
+              IntervalTimer*      timer,
+              volatile bool*      blocked,
+              volatile bool*      sync,
+              volatile uint16_t*  posInArray,
+              volatile uint16_t*  numOfBytesToRead,
+              volatile uint8_t*   rcvdPkt,
+              uint8_t*            uartInt,
+              volatile uint8_t*   resendCounter,
+              void (*rxResyncFunctionPointer)(void)){
+
+
+    if ((*sync) == true)
+    {
+      //Serial.println("IN Sync1");
+      if ((*posInArray) >= 4)
+      {
+        (*numOfBytesToRead) = rcvdPkt[3] + 4;
+      } else {
+        (*numOfBytesToRead) = 4;
+      }
+      while (event->available() && (*posInArray) < (*numOfBytesToRead))
+      {
+        rcvdPkt[*posInArray] = event->read();
+        //Serial.println(rcvdPkt[posInArray]);
+        (*posInArray)+=1;
+      }
+
+      if ((*posInArray) > 4 && (*posInArray) >= rcvdPkt[3] + 4) {
+        //received a complete packet from Dynamixel
+        Serial.print("Received a Message from :");
+        Serial.println(rcvdPkt[2]);
+        Serial.println("Packet is:");
+        for(int i =0;i<rcvdPkt[3]+4;i++)
+        {
+          Serial.println(rcvdPkt[i]);
+        }
+        (*blocked)=false;
+        resendCounter=0;
+        timer->end();
+        if(scanMode)
+        {
+          //Serial.println("Hey I found Id :");
+          //Serial.println(rcvdPkt[2]);
+          IdMap[rcvdPkt[2]]=*uartInt;
+        }else if (USBmode)
+        {
+          Serial.println("Sending back this Message to USB :");
+          for (int i=0;i<(*posInArray);i++)
+          {
+            Serial.println(rcvdPkt[i]);
+          }
+        }
+        event->setRxBufferSizeTrigger(4);
+        (*posInArray) = 0;
+
+      } else {
+        if ((*posInArray) >= 4)
+        {
+          (*numOfBytesToRead) = rcvdPkt[3] + 4;
+        }
+        event->setRxBufferSizeTrigger((*numOfBytesToRead) - (*posInArray));
+        if ((event->getRxBufferSizeTrigger() > 100) | (Event1.getRxBufferSizeTrigger() <= 0))
+        {
+          //Serial.println("Weird buffersize, setting sync to false");
+          (*sync) = false;
+          event->setRxEventHandler(rxResyncFunctionPointer);
+          (*posInArray) = 0;
+          event->setRxBufferSizeTrigger(1);
+        }
+      }
+    }
+
+
+  }
 
 
 void rx1Event()
 {
-
-
-
-  Serial.println("Incoming Bytes from Port A");
-  if (Sync1 == true)
-  {
-    //Serial.println("IN Sync1");
-    if (posInArray1 >= 4)
-    {
-      numOfBytesToRead1 = rcvdPkt1[3] + 4;
-    } else {
-      numOfBytesToRead1 = 4;
-    }
-    while (Event1.available() && posInArray1 < numOfBytesToRead1)
-    {
-      rcvdPkt1[posInArray1] = Event1.read();
-      //Serial.println(rcvdPkt[posInArray]);
-      posInArray1++;
-    }
-
-    if (posInArray1 > 4 && posInArray1 >= rcvdPkt1[3] + 4) {
-      //received a complete packet from Dynamixel
-      Serial.print("Received a Message from :");
-      Serial.println(rcvdPkt1[2]);
-      Serial.println("Packet is:");
-      for(int i =0;i<rcvdPkt1[3]+4;i++)
-      {
-        Serial.println(rcvdPkt1[i]);
-      }
-      blockedA=false;
-      txATimer.end();
-      if(scanMode)
-      {
-        //Serial.println("Hey I found Id :");
-        //Serial.println(rcvdPkt[2]);
-        IdMap[rcvdPkt1[2]]=1;
-      }else if (USBmode)
-      {
-        Serial.println("Sending back this Message to USB :");
-        for (int i=0;i<posInArray1;i++)
-        {
-          Serial.println(rcvdPkt1[i]);
-        }
-      }
-      Event1.rxBufferSizeTrigger = 4;
-      posInArray1 = 0;
-
-    } else {
-      if (posInArray1 >= 4)
-      {
-        numOfBytesToRead1 = rcvdPkt1[3] + 4;
-      }
-      Event1.rxBufferSizeTrigger = (numOfBytesToRead1 - posInArray1);
-      if ((Event1.rxBufferSizeTrigger > 100) | (Event1.rxBufferSizeTrigger <= 0))
-      {
-        //Serial.println("Weird buffersize, setting sync to false");
-        Sync1 = false;
-        Event1.rxEventHandler = rx1Resync;
-        posInArray1 = 0;
-        Event1.rxBufferSizeTrigger = 1;
-      }
-    }
-  }
-  //Serial.println("BUFFERTRIGGER");
-  //Serial.println(Event1.rxBufferSizeTrigger);
-
+  rxEvent(&Event1, &txATimer, &blockedA, &Sync1, &posInArray1, &numOfBytesToRead1, rcvdPkt1,&uartInt1,&resendCounterA, rx1Resync);
 }
 
 void rx2Event()
 {
-
-
-
-  Serial.println("Incoming Bytes from Port B");
-  if (Sync2 == true)
-  {
-    //Serial.println("IN Sync1");
-    if (posInArray2 >= 4)
-    {
-      numOfBytesToRead2 = rcvdPkt2[3] + 4;
-    } else {
-      numOfBytesToRead2 = 4;
-    }
-    while (Event2.available() && posInArray2 < numOfBytesToRead2)
-    {
-      rcvdPkt2[posInArray2] = Event2.read();
-      //Serial.println(rcvdPkt[posInArray]);
-      posInArray2++;
-    }
-
-    if (posInArray2 > 4 && posInArray2 >= rcvdPkt2[3] + 4) {
-      //received a complete packet from Dynamixel
-      Serial.print("Received a Message from :");
-      Serial.println(rcvdPkt2[2]);
-      Serial.println("Packet is:");
-      for(int i =0;i<rcvdPkt2[3]+4;i++)
-      {
-        Serial.println(rcvdPkt2[i]);
-      }
-      blockedB=false;
-      txBTimer.end();
-
-      if(scanMode)
-      {
-        //Serial.println("Hey I found Id :");
-        //Serial.println(rcvdPkt[2]);
-        IdMap[rcvdPkt2[2]]=2;
-      }else if (USBmode)
-      {
-        Serial.println("Sending back this Message to USB :");
-        for (int i=0;i<posInArray2;i++)
-        {
-          Serial.println(rcvdPkt2[i]);
-        }
-      }
-      Event2.rxBufferSizeTrigger = 4;
-      posInArray2 = 0;
-
-    } else {
-      if (posInArray2 >= 4)
-      {
-        numOfBytesToRead2 = rcvdPkt2[3] + 4;
-      }
-      Event2.rxBufferSizeTrigger = (numOfBytesToRead2 - posInArray2);
-      if ((Event2.rxBufferSizeTrigger > 100) | (Event2.rxBufferSizeTrigger <= 0))
-      {
-        //Serial.println("Weird buffersize, setting sync to false");
-        Sync2 = false;
-        Event2.rxEventHandler = rx2Resync;
-        posInArray2 = 0;
-        Event2.rxBufferSizeTrigger = 1;
-      }
-    }
-  }
-  //Serial.println("BUFFERTRIGGER");
-  //Serial.println(Event1.rxBufferSizeTrigger);
+  rxEvent(&Event2, &txBTimer, &blockedB, &Sync2, &posInArray2, &numOfBytesToRead2, rcvdPkt2,&uartInt2,&resendCounterC, rx2Resync);
 
 }
 
 void rx3Event()
 {
+  rxEvent(&Event3, &txCTimer, &blockedC, &Sync3, &posInArray3, &numOfBytesToRead3, rcvdPkt3,&uartInt3,&resendCounterC, rx3Resync);
+
+}
 
 
-
-  Serial.println("Incoming Bytes from Port C");
-  if (Sync3 == true)
+void rxResync( UartEvent*          event,
+              volatile bool*      sync,
+              volatile uint16_t*   posInArray,
+              volatile uint8_t*   rcvdPkt,
+              void (*rxEventFunctionPointer)(void)){
+  if (!event->available()) {
+    return;
+  }
+  rcvdPkt[*posInArray] = ((uint8_t) event->read());
+  //println(rcvdPkt[posInArray]);
+  (*posInArray)+=1;
+  if ((*posInArray) >= 4)
   {
-    //Serial.println("IN Sync1");
-    if (posInArray3 >= 4)
+    if (rcvdPkt[0] == 255 && rcvdPkt[1] == 255)
     {
-      numOfBytesToRead3 = rcvdPkt3[3] + 4;
+      //Serial.println("Sent off array was:");
+      //Serial.println(rcvdPkt[0]);
+      //Serial.println(rcvdPkt[1]);
+      //Serial.println(rcvdPkt[2]);
+      //Serial.println(rcvdPkt[3]);
+      (*sync) = true;
+      event->setRxBufferSizeTrigger(rcvdPkt[3] + 4);
+      //numOfBytesToRead=rcvdPkt[3]+4;
+      //posInArray++;
+      event->setRxEventHandler(rxEventFunctionPointer);
     } else {
-      numOfBytesToRead3 = 4;
-    }
-    while (Event3.available() && posInArray3 < numOfBytesToRead3)
-    {
-      rcvdPkt3[posInArray3] = Event3.read();
-      //Serial.println(rcvdPkt[posInArray]);
-      posInArray3++;
-    }
-
-    if (posInArray3 > 4 && posInArray3 >= rcvdPkt3[3] + 4) {
-      //received a complete packet from Dynamixel
-      Serial.print("Received a Message from :");
-      Serial.println(rcvdPkt3[2]);
-      Serial.println("Packet is:");
-      for(int i =0;i<rcvdPkt3[3]+4;i++)
-      {
-        Serial.println(rcvdPkt3[i]);
-      }
-      blockedC=false;
-      txCTimer.end();
-      if(scanMode)
-      {
-        //Serial.println("Hey I found Id :");
-        //Serial.println(rcvdPkt[2]);
-        IdMap[rcvdPkt3[2]]=3;
-      }else if (USBmode)
-      {
-        Serial.println("Sending back this Message to USB :");
-        for (int i=0;i<posInArray3;i++)
-        {
-          Serial.println(rcvdPkt3[i]);
-        }
-      }
-      Event3.rxBufferSizeTrigger = 4;
-      posInArray3 = 0;
-
-    } else {
-      if (posInArray3 >= 4)
-      {
-        numOfBytesToRead3 = rcvdPkt3[3] + 4;
-      }
-      Event3.rxBufferSizeTrigger = (numOfBytesToRead3 - posInArray3);
-      if ((Event3.rxBufferSizeTrigger > 100) | (Event3.rxBufferSizeTrigger <= 0))
-      {
-        //Serial.println("Weird buffersize, setting sync to false");
-        Sync3 = false;
-        Event3.rxEventHandler = rx3Resync;
-        posInArray3 = 0;
-        Event3.rxBufferSizeTrigger = 1;
-      }
+      Serial.println("rolling array");
+      rcvdPkt[0] = rcvdPkt[1];
+      rcvdPkt[1] = rcvdPkt[2];
+      rcvdPkt[2] = rcvdPkt[3];
+      Serial.println(rcvdPkt[0]);
+      Serial.println(rcvdPkt[1]);
+      Serial.println(rcvdPkt[2]);
+      Serial.println(rcvdPkt[3]);
+      (*posInArray)-=1;
     }
   }
-  //Serial.println("BUFFERTRIGGER");
-  //Serial.println(Event1.rxBufferSizeTrigger);
-
 }
 
 
 void rx1Resync()
 {
+  rxResync(&Event1, &Sync1, &posInArray1, rcvdPkt1, rx1Event);
+  /*
   if (!Event1.available()) {
     return;
   }
@@ -615,9 +584,13 @@ void rx1Resync()
       posInArray1--;
     }
   }
+  */
 }
+
 void rx2Resync()
 {
+  rxResync(&Event2, &Sync2, &posInArray2, rcvdPkt2, rx2Event);
+  /*
   if (!Event2.available()) {
     return;
   }
@@ -650,10 +623,13 @@ void rx2Resync()
       posInArray2--;
     }
   }
+  */
 }
 
 void rx3Resync()
 {
+  rxResync(&Event3, &Sync3, &posInArray3, rcvdPkt3, rx3Event);
+  /*
   if (!Event3.available()) {
     return;
   }
@@ -686,11 +662,23 @@ void rx3Resync()
       posInArray3--;
     }
   }
+  */
 }
 
+void send(Stream* event, QueueArray<DynamixelMessage*>* queue, volatile bool* blocked, volatile uint8_t* resendCounter,volatile bool* busy, Vector<uint8_t>* messagevector)
+{
+    *busy=true;
+    DynamixelMessage* message=queue->pop();
+    message->assemblePacket(messagevector);
+    event->write(messagevector->data(),messagevector->size());
+    event->flush();
+    delete message;
+}
 
 void sendA()
 {
+  send(&Event1, &Queue_A, &blockedA, &resendCounterA,&busyA, &MessageVectorA);
+  /*
   while(!blockedA && !Queue_A.isEmpty())
   {
     DynamixelMessage* message=Queue_A.pop();
@@ -699,10 +687,13 @@ void sendA()
     Event1.flush();
     delete message;
   }
+  */
 }
 
 void sendB()
 {
+  send(&Event2, &Queue_B, &blockedB, &resendCounterB,&busyB, &MessageVectorB);
+  /*
   while(!blockedB && !Queue_B.isEmpty())
   {
     DynamixelMessage* message=Queue_B.pop();
@@ -711,10 +702,12 @@ void sendB()
     Event2.flush();
     delete message;
   }
+  */
 }
 
 void sendC()
 {
+  send(&Event3, &Queue_C, &blockedC, &resendCounterC,&busyC, &MessageVectorC);
   /*
   while(!blockedC && !Queue_C.isEmpty())
   {
@@ -726,12 +719,35 @@ void sendC()
     delete message;
   }*/
 }
-void sendPkt(Vector<uint8_t>* packetToSend)
+
+void pushToQueue( QueueArray<DynamixelMessage*>*  queue,
+                  DynamixelMessage*               messageToPush,
+                  volatile bool*                  busy,
+                  void (*sendFunctionPointer)(void))
+  {
+    queue->push(messageToPush);
+    if((*busy) == false)
+    {
+      sendFunctionPointer();
+    }
+  }
+void pushToQueue1(DynamixelMessage* messageToPush1)
 {
-
-
-
+    pushToQueue(&Queue_A,messageToPush1,&busyA,sendA);
 }
+
+
+
+void pushToQueue2(DynamixelMessage* messageToPush2)
+{
+    pushToQueue(&Queue_B,messageToPush2,&busyB,sendB);
+}
+
+void pushToQueue3(DynamixelMessage* messageToPush3)
+{
+    pushToQueue(&Queue_C,messageToPush3,&busyC,sendC);
+}
+
 
 
 

@@ -52,7 +52,20 @@
 #define RX2_BUFFER_SIZE 128 // Uart3 incoming buffer size, must be power of 2 //
 ////////////////////////////////////////////////////////////////////////////////
 //---------------------------------------Uart1Event----------------------------------------
-class Uart1Event : public Stream {
+class UartEvent: public Stream{
+  public:
+  virtual void setRxTermCharacterTrigger(int input){};
+  virtual void setRxBufferSizeTrigger(int input){};
+
+  virtual int getRxTermCharacterTrigger(){return 0;};
+  virtual int getRxBufferSizeTrigger(){return 0;};
+
+  virtual void setTxEventHandler(void (*input)(void)){};
+  virtual void setRxEventHandler(void (*input)(void)){};
+};
+
+
+class Uart1Event : public UartEvent {
 private:
     static uint32_t *elink;
     static volatile int16_t  priority;
@@ -64,7 +77,7 @@ private:
     static void serial_dma_tx_isr    ( void ) ;
     static void serial_dma_rx_isr    ( void ) ;
     static void defaultCallback      ( void ) {  }
-    
+
     void serial_dma_begin            ( uint32_t divisor );
     void serial_dma_format           ( uint32_t format );
     void serial_dma_end              ( void );
@@ -77,7 +90,7 @@ private:
     int  serial_dma_getchar          ( void );
     int  serial_dma_peek             ( void );
     void serial_dma_clear            ( void );
-    
+
     inline static void raise_priority( void ) {
         int pri = nvic_execution_priority( );
         if ( pri <= priority ) {
@@ -85,7 +98,7 @@ private:
             NVIC_SET_PRIORITY( IRQ_DMA_CH0 + rx.channel, ( pri - 16 ) >= 0 ? pri - 16 : 0 );
         }
     }
-    
+
     inline static void lower_priority( void ) {
         int pri = nvic_execution_priority( );
         if ( pri <= priority ) {
@@ -119,7 +132,7 @@ public:
     virtual size_t write            ( unsigned int n )  { return write( ( uint8_t )n ); }
     virtual size_t write            ( int n )           { return write( ( uint8_t )n ); }
     virtual size_t write9bit        ( uint32_t c )      {  return 0; }
-    
+
     virtual size_t write( const uint8_t *buffer, size_t size ) {
         int s = serial_dma_write( buffer, size );
         return s;
@@ -136,9 +149,32 @@ public:
     static ISR rxEventHandler;
     static const uint32_t txBufferSize = TX0_BUFFER_SIZE;
     static const uint32_t rxBufferSize = RX0_BUFFER_SIZE;
+
+
+    virtual void setRxTermCharacterTrigger(int input){
+      rxTermCharacterTrigger=input;
+    };
+    virtual void setRxBufferSizeTrigger(int input){
+      rxBufferSizeTrigger=input;
+    };
+
+    virtual int getRxTermCharacterTrigger(){
+      return rxTermCharacterTrigger;
+    };
+    virtual int getRxBufferSizeTrigger(){
+      return rxBufferSizeTrigger;
+    };
+
+    virtual void setTxEventHandler(void (*input)(void)){
+      txEventHandler=input;
+    };
+    virtual void setRxEventHandler(void (*input)(void)){
+      rxEventHandler=input;
+    };
 };
+
 //---------------------------------------Uart2Event----------------------------------------
-class Uart2Event : public Stream {
+class Uart2Event : public UartEvent {
 private:
     static uint32_t *elink;
     static volatile int16_t  priority;
@@ -150,7 +186,7 @@ private:
     static void serial_dma_tx_isr    ( void ) ;
     static void serial_dma_rx_isr    ( void ) ;
     static void defaultCallback      ( void ) {  }
-    
+
     void serial_dma_begin            ( uint32_t divisor );
     void serial_dma_format           ( uint32_t format );
     void serial_dma_end              ( void );
@@ -163,7 +199,7 @@ private:
     int  serial_dma_getchar          ( void );
     int  serial_dma_peek             ( void );
     void serial_dma_clear            ( void );
-    
+
     inline static void raise_priority( void ) {
         int pri = nvic_execution_priority( );
         if ( pri <= priority ) {
@@ -171,7 +207,7 @@ private:
             NVIC_SET_PRIORITY( IRQ_DMA_CH0 + rx.channel, ( pri - 16 ) >= 0 ? pri - 16 : 0 );
         }
     }
-    
+
     inline static void lower_priority( void ) {
         int pri = nvic_execution_priority( );
         if ( pri <= priority ) {
@@ -205,7 +241,7 @@ public:
     virtual size_t write            ( unsigned int n )  { return write( ( uint8_t )n ); }
     virtual size_t write            ( int n )           { return write( ( uint8_t )n ); }
     virtual size_t write9bit        ( uint32_t c )      {  return 0; }
-    
+
     virtual size_t write( const uint8_t *buffer, size_t size ) {
         int s = serial_dma_write( buffer, size );
         return s;
@@ -222,9 +258,30 @@ public:
     static ISR rxEventHandler;
     static const uint32_t txBufferSize = TX1_BUFFER_SIZE;
     static const uint32_t rxBufferSize = RX1_BUFFER_SIZE;
+
+    virtual void setRxTermCharacterTrigger(int input){
+      rxTermCharacterTrigger=input;
+    };
+    virtual void setRxBufferSizeTrigger(int input){
+      rxBufferSizeTrigger=input;
+    };
+
+    virtual int getRxTermCharacterTrigger(){
+      return rxTermCharacterTrigger;
+    };
+    virtual int getRxBufferSizeTrigger(){
+      return rxBufferSizeTrigger;
+    };
+
+    virtual void setTxEventHandler(void (*input)(void)){
+      txEventHandler=input;
+    };
+    virtual void setRxEventHandler(void (*input)(void)){
+      rxEventHandler=input;
+    };
 };
 //---------------------------------------Uart3Event----------------------------------------
-class Uart3Event : public Stream {
+class Uart3Event : public UartEvent {
 private:
     static uint32_t *elink;
     static volatile int16_t  priority;
@@ -236,7 +293,7 @@ private:
     static void serial_dma_tx_isr    ( void ) ;
     static void serial_dma_rx_isr    ( void ) ;
     static void defaultCallback      ( void ) {  }
-    
+
     void serial_dma_begin            ( uint32_t divisor );
     void serial_dma_format           ( uint32_t format );
     void serial_dma_end              ( void );
@@ -249,7 +306,7 @@ private:
     int  serial_dma_getchar          ( void );
     int  serial_dma_peek             ( void );
     void serial_dma_clear            ( void );
-    
+
     inline static void raise_priority( void ) {
         int pri = nvic_execution_priority( );
         if ( pri <= priority ) {
@@ -257,7 +314,7 @@ private:
             NVIC_SET_PRIORITY( IRQ_DMA_CH0 + rx.channel, ( pri - 16 ) >= 0 ? pri - 16 : 0 );
         }
     }
-    
+
     inline static void lower_priority( void ) {
         int pri = nvic_execution_priority( );
         if ( pri <= priority ) {
@@ -291,7 +348,7 @@ public:
     virtual size_t write            ( unsigned int n )  { return write( ( uint8_t )n ); }
     virtual size_t write            ( int n )           { return write( ( uint8_t )n ); }
     virtual size_t write9bit        ( uint32_t c )      {  return 0; }
-    
+
     virtual size_t write( const uint8_t *buffer, size_t size ) {
         int s = serial_dma_write( buffer, size );
         return s;
@@ -308,6 +365,27 @@ public:
     static ISR rxEventHandler;
     static const uint32_t txBufferSize = TX2_BUFFER_SIZE;
     static const uint32_t rxBufferSize = RX2_BUFFER_SIZE;
+
+    virtual void setRxTermCharacterTrigger(int input){
+      rxTermCharacterTrigger=input;
+    };
+    virtual void setRxBufferSizeTrigger(int input){
+      rxBufferSizeTrigger=input;
+    };
+
+    virtual int getRxTermCharacterTrigger(){
+      return rxTermCharacterTrigger;
+    };
+    virtual int getRxBufferSizeTrigger(){
+      return rxBufferSizeTrigger;
+    };
+
+    virtual void setTxEventHandler(void (*input)(void)){
+      txEventHandler=input;
+    };
+    virtual void setRxEventHandler(void (*input)(void)){
+      rxEventHandler=input;
+    };
 };
 //---------------------------------------------End----------------------------------------------
 #endif  // __cplusplus
